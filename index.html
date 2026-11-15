@@ -1,0 +1,176 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
+<title>cashif@sec — interactive terminal</title>
+<meta name="description" content="Hack into M Kashif's terminal. Type help to begin.">
+<meta property="og:title" content="cashif@sec — interactive terminal">
+<meta property="og:description" content="Hack into M Kashif's terminal: type commands, crack the vault, find the easter eggs.">
+<meta name="theme-color" content="#05080a">
+<meta property="og:type" content="website">
+<meta property="og:url" content="https://cashifdev.github.io/">
+<meta property="og:image" content="https://cashifdev.github.io/og.png">
+<meta property="og:image:width" content="1200">
+<meta property="og:image:height" content="630">
+<meta name="twitter:card" content="summary_large_image">
+<meta name="twitter:image" content="https://cashifdev.github.io/og.png">
+<link rel="icon" href="favicon.png">
+<style>
+:root{--g:#00ff9c;--c:#00e5ff;--m:#ff2bd6;--bg:#05080a;--t:#c9d1d9;--d:#8b949e}
+*{box-sizing:border-box}
+html,body{margin:0;height:100%;background:var(--bg);color:var(--t);font:15px/1.55 'JetBrains Mono','Fira Code',Consolas,'Courier New',monospace;overflow:hidden}
+#rain{position:fixed;inset:0;z-index:0;opacity:.16;pointer-events:none}
+.crt::after{content:"";position:fixed;inset:0;pointer-events:none;z-index:5;background:repeating-linear-gradient(0deg,rgba(0,0,0,.25) 0 1px,transparent 1px 3px)}
+.scan{position:fixed;left:0;right:0;height:80px;z-index:4;pointer-events:none;background:linear-gradient(transparent,rgba(0,255,156,.06));animation:scan 6s linear infinite}
+@keyframes scan{from{top:-80px}to{top:100%}}
+#wrap{position:relative;z-index:2;max-width:980px;height:100%;margin:0 auto;display:flex;flex-direction:column;padding:14px}
+.bar{display:flex;align-items:center;gap:8px;background:#11161d;border:1px solid #1f2a33;border-bottom:0;border-radius:12px 12px 0 0;padding:9px 14px}
+.dot{width:12px;height:12px;border-radius:50%}
+.bar .t{flex:1;text-align:center;color:var(--d);font-size:13px}
+#term{flex:1;overflow-y:auto;background:rgba(11,15,20,.92);border:1px solid var(--g);border-radius:0 0 12px 12px;padding:16px 18px 24px;box-shadow:0 0 24px rgba(0,255,156,.15),inset 0 0 40px rgba(0,0,0,.6);-webkit-overflow-scrolling:touch}
+#term::-webkit-scrollbar{width:6px}#term::-webkit-scrollbar-thumb{background:#1f3a2e;border-radius:3px}
+.line{white-space:pre-wrap;word-break:break-word}
+.p1{color:var(--m)}.p2{color:var(--d)}.p3{color:var(--c)}
+.g{color:var(--g)}.c{color:var(--c)}.m{color:var(--m)}.d{color:var(--d)}.w{color:#eafff5}.r{color:#ff5f56}.y{color:#ffbd2e}
+.glow{text-shadow:0 0 8px currentColor}
+a{color:var(--c);text-decoration:none;border-bottom:1px dashed var(--c)}a:hover{color:var(--g)}
+.inrow{display:flex;white-space:pre}
+#in{flex:1;background:transparent;border:0;outline:0;color:#eafff5;font:inherit;caret-color:var(--g);padding:0;min-width:0}
+.chips{display:flex;flex-wrap:wrap;gap:8px;padding:10px 0 2px}
+.chip{background:#0b0f14;border:1px solid #1f3a2e;color:var(--g);border-radius:20px;padding:6px 12px;font:13px inherit;font-family:inherit;cursor:pointer}
+.chip:active,.chip:hover{border-color:var(--g);box-shadow:0 0 8px rgba(0,255,156,.4)}
+.ascii{color:var(--g);text-shadow:0 0 10px rgba(0,255,156,.6);font-size:clamp(6px,1.9vw,13px);line-height:1.15}
+.bar-fill{display:inline-block;height:10px;background:var(--g);box-shadow:0 0 6px var(--g);vertical-align:middle}
+.glitch{animation:gl .3s steps(2) 3}
+@keyframes gl{0%{transform:translate(2px,0);filter:hue-rotate(90deg)}50%{transform:translate(-2px,1px)}100%{transform:none;filter:none}}
+.flash{animation:fl .6s}
+@keyframes fl{0%{background:rgba(0,255,156,.25)}100%{background:transparent}}
+.redflash{animation:rf .6s}
+@keyframes rf{0%{background:rgba(255,40,80,.3)}100%{background:transparent}}
+@media (max-width:600px){html,body{font-size:13px}#wrap{padding:8px}#term{padding:12px}}
+</style>
+</head>
+<body class="crt">
+<canvas id="rain"></canvas><div class="scan"></div>
+<div id="wrap">
+  <div class="bar"><span class="dot" style="background:#ff5f56"></span><span class="dot" style="background:#ffbd2e"></span><span class="dot" style="background:#27c93f"></span><span class="t">guest@cashif-sec: ~ — zsh</span></div>
+  <div id="term" onclick="focusIn()">
+    <div id="out"></div>
+    <div class="inrow" id="inrow"><span id="ps"></span><input id="in" autocomplete="off" autocapitalize="off" spellcheck="false" enterkeyhint="send" aria-label="terminal input"></div>
+    <div class="chips" id="chips"></div>
+  </div>
+</div>
+<script>
+const OWNER="cashifdev";
+const out=document.getElementById('out'),inp=document.getElementById('in'),term=document.getElementById('term'),ps=document.getElementById('ps');
+let user="guest",hist=[],hi=0,mode=null,game=null,busy=false,rainOn=true,visitors=+localStorage.getItem('cs_visits')||0;
+localStorage.setItem('cs_visits',++visitors);
+const prompt=()=>`<span class="p1">${user}@cashif-sec</span><span class="p2">:</span><span class="p3">~</span><span class="d"> $ </span>`;
+ps.innerHTML=prompt();
+function esc(s){return String(s).replace(/[&<>"]/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;'}[c]))}
+function print(h,cls){const d=document.createElement('div');d.className='line '+(cls||'');d.innerHTML=h;out.appendChild(d);term.scrollTop=term.scrollHeight;return d}
+const sleep=ms=>new Promise(r=>setTimeout(r,ms));
+async function type(h,speed=12,cls){const d=print('',cls);let i=0;while(i<h.length){if(h[i]==='<'){const j=h.indexOf('>',i);i=j+1}else if(h[i]==='&'){const j=h.indexOf(';',i);i=j+1}else i++;d.innerHTML=h.slice(0,i);term.scrollTop=term.scrollHeight;await sleep(speed)}return d}
+function focusIn(){if(window.getSelection().toString())return;inp.focus({preventScroll:true})}
+const CHIPS=['help','whoami','projects','hack','neofetch','matrix','guestbook','contact'];
+document.getElementById('chips').innerHTML=CHIPS.map(c=>`<button class="chip" data-c="${c}">${c}</button>`).join('');
+document.getElementById('chips').onclick=e=>{const c=e.target.dataset.c;if(c&&!busy){run(c)}};
+
+const LOGO=String.raw`
+  ██████╗ █████╗ ███████╗██╗  ██╗██╗███████╗
+ ██╔════╝██╔══██╗██╔════╝██║  ██║██║██╔════╝
+ ██║     ███████║███████╗███████║██║█████╗
+ ██║     ██╔══██║╚════██║██╔══██║██║██╔══╝
+ ╚██████╗██║  ██║███████║██║  ██║██║██║
+  ╚═════╝╚═╝  ╚═╝╚══════╝╚═╝  ╚═╝╚═╝╚═╝  dev`;
+
+let repoCache=null;
+async function repos(){if(repoCache)return repoCache;try{const r=await fetch(`https://api.github.com/users/${OWNER}/repos?per_page=100&sort=pushed`);const j=await r.json();repoCache=j.filter(x=>!x.fork&&!x.archived&&x.name.toLowerCase()!==OWNER&&!x.name.endsWith('.github.io'));}catch(e){repoCache=[]}return repoCache}
+
+const CMDS={
+ help:{d:'list commands',f(){print(`<span class="w">Available commands</span>
+`+Object.entries(CMDS).filter(([k,v])=>!v.h).map(([k,v])=>`  <span class="g">${k.padEnd(12)}</span><span class="d">${v.d}</span>`).join('\n')+`
+
+<span class="d">tip: ↑/↓ history · TAB autocomplete · try a few things not listed 👀</span>`)}},
+ whoami:{d:'who is behind this terminal',async f(){await type(`<span class="g">M Kashif</span> <span class="d">(@${OWNER})</span>
+<span class="c">AI-Powered Full-Stack Developer</span> · web development · IT solutions.
+I build and ship every project with <span class="m">AI as my co-pilot</span>, from idea to live product.
+Websites, web apps, servers, tools: if it runs on the web, I'm in.`,6)}},
+ skills:{d:'tech stack with levels',async f(){const s=[['Web development',90],['HTML / CSS',88],['JavaScript',85],['PHP / MySQL',85],['AI-assisted building',95],['Linux / servers',82],['IT support',85]];for(const [n,v] of s){const d=print(`  <span class="w">${n.padEnd(20)}</span><span class="bar-fill" style="width:0"></span> <span class="d">${v}%</span>`);await sleep(60);d.querySelector('.bar-fill').style.transition='width .7s';d.querySelector('.bar-fill').style.width=(v*1.6)+'px'}await sleep(500)}},
+ projects:{d:'live list of my public repos',async f(){print('<span class="d">fetching repos from github...</span>');const r=await repos();if(!r.length){print('<span class="r">github api rate-limited, try again in a minute or visit </span><a href="https://github.com/'+OWNER+'" target="_blank">github.com/'+OWNER+'</a>');return}r.slice(0,10).forEach((x,i)=>print(`  <span class="m">[${i+1}]</span> <a href="${x.html_url}" target="_blank">${esc(x.name)}</a> <span class="y">★${x.stargazers_count}</span> <span class="d">${esc(x.language||'')}</span>\n      <span class="d">${esc(x.description||'')}</span>`));print('<span class="d">type</span> <span class="g">open &lt;number&gt;</span> <span class="d">to launch one</span>')}},
+ open:{d:'open a project: open 1',async f(a){const r=await repos();const n=parseInt(a[0]);if(!n||!r[n-1]){print('<span class="r">usage: open &lt;number from projects&gt;</span>');return}print(`<span class="g">launching ${esc(r[n-1].name)}...</span>`);window.open(r[n-1].html_url,'_blank')}},
+ neofetch:{d:'system info',f(){const up=Math.floor((Date.now()-new Date('2019-08-22'))/864e5);print(`<pre class="ascii" style="margin:0">${LOGO}</pre>
+  <span class="m">guest</span>@<span class="c">cashif-sec</span>
+  <span class="d">-----------------</span>
+  <span class="g">OS</span>        CashifOS (hardened)
+  <span class="g">Host</span>      github.com/${OWNER}
+  <span class="g">Uptime</span>    ${up} days on GitHub
+  <span class="g">Shell</span>     zsh + caffeine
+  <span class="g">Stack</span>     Web · IT · AI-powered
+  <span class="g">Firewall</span>  <span class="g">ACTIVE</span>
+  <span class="g">Visits</span>    you've been here ${visitors}x`)}},
+ hack:{d:'mini game: crack the vault code',async f(){busy=true;await type('<span class="g">[*] connecting to vault.cashif-sec ...</span>',10);await sleep(300);await type('<span class="g">[*] bypassing firewall ...</span> <span class="w">██████████ 100%</span>',8);await sleep(300);const code=[...Array(4)].map(()=>Math.floor(Math.random()*10)).join('');game={code,tries:0,max:8};mode='hack';busy=false;print(`<span class="m">[!] VAULT LOCKED</span> — guess the <span class="w">4-digit</span> code in ${game.max} tries.
+    <span class="g">●</span> right digit, right spot   <span class="y">○</span> right digit, wrong spot
+    type <span class="g">quit</span> to abort`);ps.innerHTML='<span class="m">vault</span><span class="d">&gt; </span>'}},
+ matrix:{d:'toggle the digital rain',f(){rainOn=!rainOn;document.getElementById('rain').style.opacity=rainOn?'.16':'0';print(rainOn?'<span class="g">wake up, neo... the rain is back.</span>':'<span class="d">rain off.</span>')}},
+ theme:{d:'theme green | cyan | pink',f(a){const t={green:['#00ff9c','#00e5ff'],cyan:['#00e5ff','#00ff9c'],pink:['#ff2bd6','#00e5ff']}[a[0]];if(!t){print('<span class="r">usage: theme green|cyan|pink</span>');return}document.documentElement.style.setProperty('--g',t[0]);document.documentElement.style.setProperty('--c',t[1]);document.getElementById('term').style.borderColor=t[0];print(`<span class="g">theme set to ${a[0]}</span>`)}},
+ guestbook:{d:'sign my guestbook (shows on my profile)',f(){const url=`https://github.com/${OWNER}/${OWNER}/issues/new?title=${encodeURIComponent('guestbook: ')}&body=${encodeURIComponent('Write your message in the title after "guestbook: " and press Submit. It will appear on the profile within a minute.')}`;print(`<span class="g">Leave your mark on my profile 👾</span>\n  → <a href="${url}" target="_blank">sign the guestbook</a> <span class="d">(needs a GitHub account)</span>`)}},
+ contact:{d:'ways to reach me',f(){print(`  <span class="g">github</span>   <a href="https://github.com/${OWNER}" target="_blank">github.com/${OWNER}</a>
+  <span class="g">site</span>     <a href="https://chatnoregister.com" target="_blank">chatnoregister.com</a>
+  <span class="g">hire</span>     <a href="https://github.com/${OWNER}/${OWNER}/issues/new?title=Work%20inquiry" target="_blank">open a work inquiry</a>`)}},
+ login:{d:'set your hacker name: login neo',f(a){const n=(a[0]||'').replace(/[^\w-]/g,'').slice(0,16);if(!n){print('<span class="r">usage: login &lt;name&gt;</span>');return}user=n;localStorage.setItem('cs_user',n);ps.innerHTML=prompt();print(`<span class="g">welcome, ${n}. access level: guest+</span>`)}},
+ history:{d:'command history',f(){print(hist.map((h,i)=>`  <span class="d">${String(i+1).padStart(3)}</span>  ${esc(h)}`).join('\n')||'<span class="d">empty</span>')}},
+ date:{d:'current date',f(){print(new Date().toString())}},
+ echo:{d:'echo text',f(a){print(esc(a.join(' ')))}},
+ clear:{d:'clear the screen',f(){out.innerHTML=''}},
+ exit:{d:'leave the terminal',f(){print('<span class="g">connection closed. returning to profile...</span>');setTimeout(()=>location.href=`https://github.com/${OWNER}`,900)}},
+ sudo:{h:1,async f(a){const d=print('<span class="r">[sudo] password for guest: ********</span>');await sleep(700);d.classList.add('redflash');print('<span class="r">guest is not in the sudoers file. This incident will be reported. 🚨</span>')}},
+ rm:{h:1,async f(a){if(a.join(' ').includes('-rf')){document.body.classList.add('glitch');await type('<span class="r">deleting / ...</span>',20);await sleep(400);document.body.classList.remove('glitch');print('<span class="g">just kidding. everything is backed up. always. 😎</span>')}else print('<span class="r">rm: permission denied</span>')}},
+ ls:{h:1,f(){print('<span class="c">projects/</span>  <span class="c">secrets/</span>  readme.txt  coffee.sh')}},
+ cat:{h:1,f(a){const f=a[0]||'';if(f.includes('readme'))print('Thanks for visiting. Type <span class="g">hack</span> if you dare.');else if(f.includes('coffee'))print('#!/bin/zsh\nwhile true; do brew coffee; code; done');else if(f.includes('secret'))print('<span class="r">cat: secrets/: Permission denied (nice try)</span>');else print(`<span class="r">cat: ${esc(f)}: No such file</span>`)}},
+ cd:{h:1,f(a){if((a[0]||'').includes('secret'))print('<span class="r">access denied. crack the vault first: type hack</span>');else print('<span class="d">you are already where the cool stuff is.</span>')}},
+ coffee:{h:1,f(){print('<span class="y">☕ brewing... fuel level restored to 100%</span>')}},
+ hello:{h:1,f(){print(`hey ${esc(user)} 👋 type <span class="g">help</span> to look around.`)}},
+ chatnoregister:{h:1,f(){print('<span class="g">opening chatnoregister.com ...</span>');window.open('https://chatnoregister.com','_blank')}},
+};
+CMDS.hi=CMDS.hello;CMDS['?']=CMDS.help;
+
+async function hackGuess(v){if(v==='quit'){endHack('<span class="d">aborted. the vault remains locked.</span>');return}if(!/^\d{4}$/.test(v)){print('<span class="r">enter exactly 4 digits</span>');return}game.tries++;const c=game.code.split(''),g=v.split('');let hit=0,near=0;const cr=[],gr=[];for(let i=0;i<4;i++){if(g[i]===c[i])hit++;else{cr.push(c[i]);gr.push(g[i])}}for(const x of gr){const k=cr.indexOf(x);if(k>-1){near++;cr.splice(k,1)}}
+ const fb='<span class="g">'+'●'.repeat(hit)+'</span><span class="y">'+'○'.repeat(near)+'</span><span class="d">'+'·'.repeat(4-hit-near)+'</span>';
+ print(`  <span class="d">try ${game.tries}/${game.max}</span>  ${v}  ${fb}`);
+ if(hit===4){const d=print(`<span class="g glow">ACCESS GRANTED</span> — cracked in ${game.tries} ${game.tries===1?'try':'tries'}. respect. 🏆`);d.classList.add('flash');const best=+localStorage.getItem('cs_best')||99;if(game.tries<best){localStorage.setItem('cs_best',game.tries);print('<span class="m">new personal best!</span>')}print(`<span class="d">secrets/flag.txt:</span> <span class="c">FLAG{st4r_th3_r3p0s}</span> <span class="d">→ drop a ⭐ on a repo and sign the</span> <span class="g">guestbook</span>`);endHack()}
+ else if(game.tries>=game.max){const d=print(`<span class="r">LOCKED OUT.</span> the code was <span class="w">${game.code}</span>. type <span class="g">hack</span> to retry.`);d.classList.add('redflash');endHack()}}
+function endHack(msg){if(msg)print(msg);mode=null;game=null;ps.innerHTML=prompt()}
+
+async function run(raw){const v=raw.trim();print(mode==='hack'?`<span class="m">vault</span><span class="d">&gt; </span>${esc(v)}`:prompt()+esc(v));if(!v)return;hist.push(v);hi=hist.length;
+ if(mode==='hack'){await hackGuess(v);return}
+ const [c,...a]=v.split(/\s+/);const cmd=CMDS[c.toLowerCase()];
+ if(!cmd){print(`<span class="r">command not found: ${esc(c)}</span> <span class="d">— type</span> <span class="g">help</span>`);return}
+ busy=true;inp.disabled=true;try{await cmd.f(a)}finally{busy=false;inp.disabled=false;focusIn()}}
+
+inp.addEventListener('keydown',e=>{
+ if(e.key==='Enter'){e.preventDefault();if(busy)return;const v=inp.value;inp.value='';run(v)}
+ else if(e.key==='ArrowUp'){e.preventDefault();if(hi>0){hi--;inp.value=hist[hi]}}
+ else if(e.key==='ArrowDown'){e.preventDefault();if(hi<hist.length-1){hi++;inp.value=hist[hi]}else{hi=hist.length;inp.value=''}}
+ else if(e.key==='Tab'){e.preventDefault();const m=Object.keys(CMDS).filter(k=>!CMDS[k].h&&k.startsWith(inp.value));if(m.length===1)inp.value=m[0]+' ';else if(m.length)print(m.join('  '),'d')}
+ else if(e.key==='l'&&e.ctrlKey){e.preventDefault();out.innerHTML=''}});
+
+// matrix rain
+const cv=document.getElementById('rain'),cx=cv.getContext('2d');let cols,drops;
+function size(){cv.width=innerWidth;cv.height=innerHeight;cols=Math.floor(cv.width/16);drops=Array(cols).fill(0).map(()=>Math.random()*-50)}
+size();addEventListener('resize',size);
+const G='01アカサタナハマヤラワ{}<>/#$%ABCDEF';
+setInterval(()=>{cx.fillStyle='rgba(5,8,10,.12)';cx.fillRect(0,0,cv.width,cv.height);cx.fillStyle=getComputedStyle(document.documentElement).getPropertyValue('--g');cx.font='15px monospace';drops.forEach((y,i)=>{cx.fillText(G[Math.floor(Math.random()*G.length)],i*16,y*16);if(y*16>cv.height&&Math.random()>.975)drops[i]=0;drops[i]=y+1})},55);
+
+// boot
+(async()=>{busy=true;inp.disabled=true;const saved=localStorage.getItem('cs_user');if(saved){user=saved;ps.innerHTML=prompt()}
+ const boot=['[ OK ] loading kernel modules','[ OK ] mounting encrypted volumes','[ OK ] starting firewall','[ OK ] establishing secure shell'];
+ for(const b of boot){print(`<span class="g">${b.slice(0,6)}</span><span class="d">${b.slice(6)}</span>`);await sleep(170)}
+ await sleep(200);print(`<pre class="ascii" style="margin:8px 0">${LOGO}</pre>`);
+ await type(visitors>1?`<span class="w">welcome back, ${esc(user)}.</span> <span class="d">visit #${visitors}.</span>`:`<span class="w">welcome, visitor.</span> <span class="d">you've connected to M Kashif's terminal.</span>`,14);
+ print('<span class="d">type</span> <span class="g">help</span> <span class="d">to start, or tap a command below.</span>');
+ busy=false;inp.disabled=false;if(matchMedia('(pointer:fine)').matches)focusIn()})();
+</script>
+</body>
+</html>
